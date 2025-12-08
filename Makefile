@@ -1,0 +1,3 @@
+.PHONY: build
+build: cmds/*
+	go build -o bin/ ./cmds/...
