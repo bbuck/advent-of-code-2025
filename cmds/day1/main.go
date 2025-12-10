@@ -1,20 +1,22 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strconv"
+
+	"bbuck.dev/aoc2025/config"
+	"bbuck.dev/aoc2025/input"
 )
 
 func main() {
-	inputFileName := os.Args[1]
-	file, err := os.Open(inputFileName)
+	configuration := config.Parse()
+	scanner, cleanUp, err := input.GetScanner(configuration, "day1")
+	defer cleanUp()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to open the file %q\n", inputFileName)
+		fmt.Fprintf(os.Stderr, "Failed to create the scanner: %s", err)
 		panic(err)
 	}
-	scanner := bufio.NewScanner(file)
 
 	dial := newDial()
 	var password int64
