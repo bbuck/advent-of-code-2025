@@ -12,11 +12,11 @@ import (
 func main() {
 	configuration := config.Parse()
 	scanner, cleanUp, err := input.GetScanner(configuration, "day1")
-	defer cleanUp()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create the scanner: %s", err)
 		panic(err)
 	}
+	defer cleanUp()
 
 	dial := newDial()
 	var password int64
