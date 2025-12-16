@@ -34,44 +34,6 @@ func main() {
 		ranges = append(ranges, newRange)
 	}
 
-	targetIndex := 0
-	for {
-		if len(ranges) < 2 {
-			break
-		}
-
-		if targetIndex >= len(ranges) {
-			break
-		}
-
-		var (
-			merges    int
-			newRanges []Range
-			target    = ranges[targetIndex]
-		)
-
-		for i, r := range ranges {
-			if i == targetIndex {
-				continue
-			}
-
-			if target.Overlaps(r) {
-				target = target.Merge(r)
-				merges++
-			} else {
-				newRanges = append(newRanges, r)
-			}
-		}
-
-		ranges = append(newRanges, target)
-
-		if merges == 0 {
-			targetIndex++
-		} else {
-			targetIndex = 0
-		}
-	}
-
 	slices.SortFunc(ranges, func(a Range, b Range) int {
 		if a.Minimum < b.Minimum {
 			return -1
@@ -83,6 +45,22 @@ func main() {
 
 		return 0
 	})
+
+	var mergedRanges []Range
+	if len(ranges) > 0 {
+		current := ranges[0]
+
+		for _, r := range ranges {
+			if current.Overlaps(r) {
+				current = current.Merge(r)
+			} else {
+				mergedRanges = append(mergedRanges, current)
+				current = r
+			}
+		}
+
+		ranges = append(mergedRanges, current)
+	}
 
 	var freshCount int
 	for _, r := range ranges {
@@ -130,7 +108,7 @@ func (r Range) Contains(value int) bool {
 }
 
 func (r Range) Overlaps(other Range) bool {
-	return r.Contains(other.Minimum) || r.Contains(other.Maximum)
+	return r.Minimum <= other.Maximum && r.Maximum >= other.Minimum
 }
 
 func (r Range) Merge(other Range) Range {
@@ -142,28 +120,4 @@ func (r Range) Merge(other Range) Range {
 
 func (r Range) Count() int {
 	return r.Maximum - r.Minimum + 1
-}
-
-func min(values ...int) int {
-	minimum := values[0]
-
-	for i := 1; i < len(values); i++ {
-		if values[i] < minimum {
-			minimum = values[i]
-		}
-	}
-
-	return minimum
-}
-
-func max(values ...int) int {
-	maximum := values[0]
-
-	for i := 1; i < len(values); i++ {
-		if values[i] > maximum {
-			maximum = values[i]
-		}
-	}
-
-	return maximum
 }
