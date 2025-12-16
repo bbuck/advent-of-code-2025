@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 
@@ -18,82 +17,50 @@ func main() {
 	}
 	defer cleanUp()
 
-	var (
-		problems []*Problem
-	)
+	var lines [][]rune
 	for scanner.Scan() {
-		reader := strings.NewReader(scanner.Text())
-		numbers, ok := readNumbers(reader)
-
-		if ok {
-			if problems == nil {
-				for range len(numbers) {
-					problems = append(problems, NewProblem())
-				}
-			}
-
-			for i, num := range numbers {
-				problems[i].AddNumber(num)
-			}
-
-			continue
-		}
-
-		operators, _ := readOperators(reader)
-		for i, op := range operators {
-			problems[i].Operation = op
-		}
+		lines = append(lines, []rune(scanner.Text()))
 	}
 
-	var answer int
-	for _, problem := range problems {
-		answer += problem.Execute()
+	var (
+		lineCount = len(lines) - 1
+		column    = len(lines[0]) - 1
+		answer    int
+	)
+	for column > 0 {
+		var problem = NewProblem()
+
+		for {
+			var number int
+
+			for i := range lineCount {
+				if lines[i][column] == ' ' {
+					continue
+				}
+
+				digit := lines[i][column] - '0'
+
+				number = (number * 10) + int(digit)
+			}
+
+			problem.AddNumber(number)
+
+			if lines[lineCount][column] != ' ' {
+				problem.Operation = ParseOperation(lines[lineCount][column])
+
+				answer += problem.Execute()
+
+				// skip seperate column too
+				column -= 2
+
+				break
+			}
+
+			column--
+		}
 	}
 
 	fmt.Println(answer)
-}
-
-func readNumbers(reader io.Reader) ([]int, bool) {
-	var (
-		numbers []int
-		current int
-		err     error
-	)
-
-	for err == nil {
-		_, err = fmt.Fscanf(reader, "%d", &current)
-		if err == nil {
-			numbers = append(numbers, current)
-		}
-	}
-
-	return numbers, len(numbers) > 0
-}
-
-func readOperators(reader io.Reader) ([]Operation, bool) {
-	var (
-		operations []Operation
-		current    string
-		err        error
-	)
-
-	for {
-		_, err = fmt.Fscanf(reader, "%s", &current)
-		if err != nil {
-			break
-		}
-
-		switch current {
-		case "*":
-			operations = append(operations, OperationMultiply)
-		case "+":
-			operations = append(operations, OperationAdd)
-		default:
-			panic(fmt.Errorf("Failed to identify operation %q", current))
-		}
-	}
-
-	return operations, len(operations) > 0
 }
 
 func Map[Slice ~[]E, E any, U any](slice Slice, mapper func(E) U) []U {
@@ -112,6 +79,19 @@ const (
 	OperationAdd Operation = iota
 	OperationMultiply
 )
+
+func ParseOperation(char rune) Operation {
+	switch char {
+	case '+':
+		return OperationAdd
+
+	case '*':
+		return OperationMultiply
+
+	default:
+		panic(fmt.Errorf("Unknown operation string: %c", char))
+	}
+}
 
 func (o Operation) Execute(a, b int) int {
 	switch o {
