@@ -15,9 +15,9 @@ func GetScanner(configuration config.Config, day string) (*bufio.Scanner, func()
 		fileName = "problem"
 	}
 
-	filePath := fmt.Sprintf("input/%s/%s.in", day, fileName)
+	filePath := fmt.Sprintf("%s/%s.in", day, fileName)
 
-	file, err := os.Open(filePath)
+	file, err := os.OpenInRoot("inputs", filePath)
 	if err != nil {
 		return nil, func() {}, err
 	}
@@ -29,4 +29,24 @@ func GetScanner(configuration config.Config, day string) (*bufio.Scanner, func()
 	scanner := bufio.NewScanner(file)
 
 	return scanner, cleanUp, nil
+}
+
+// ReadInput reads all the input from the problem file into a string slice.
+func ReadInput(configuration config.Config, day string) ([]string, error) {
+	scanner, cleanUp, err := GetScanner(configuration, day)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanUp()
+
+	var lines []string
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+
+	if scanner.Err() != nil {
+		return nil, scanner.Err()
+	}
+
+	return lines, nil
 }
