@@ -33,9 +33,14 @@ func main() {
 	solvePart2(configuration, vectors)
 }
 
-func solvePart2(configuration config.Config, vectors []Vector3) {
-	var lines []Line3D
+func solvePart2(_ config.Config, vectors []Vector3) {
+	var (
+		lines  []Line3D
+		forest = containers.NewDisjointSetForest[Vector3]()
+	)
 	for i, vector := range vectors {
+		forest.NewSet(vector)
+
 		for j := i + 1; j < len(vectors); j++ {
 			lines = append(lines, NewLine(vector, vectors[j]))
 		}
@@ -53,9 +58,22 @@ func solvePart2(configuration config.Config, vectors []Vector3) {
 		return 0
 	})
 
+	var result int
 	for _, line := range lines {
-		fmt.Println(line)
+		linked := forest.Union(line.Start, line.End)
+
+		if !linked {
+			continue
+		}
+
+		if forest.SetCount() == 1 {
+			result = line.Start.X * line.End.X
+
+			break
+		}
 	}
+
+	fmt.Println(result)
 }
 
 // func solvePart1(configuration config.Config, vectors []Vector3) {
