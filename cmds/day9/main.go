@@ -83,6 +83,8 @@ func solvePart2(vectors []Vector2) {
 		return 0
 	})
 
+	fmt.Println(rects[0])
+
 	fmt.Println(rects[0].Area)
 }
 
@@ -120,6 +122,49 @@ func (v Vector2) Sub(other Vector2) Vector2 {
 	}
 }
 
+func (v Vector2) CrossProduct(other Vector2) int {
+	// [ v.X  other.X ]
+	// [ v.Y  other.Y ]
+	// = (v.X * other.Y) - (other.X * v.Y)
+
+	return (v.X * other.Y) - (other.X * v.Y)
+}
+
+type Orientation int8
+
+const (
+	OrientationColinear Orientation = iota
+	OrientationClockwise
+	OrientationCounterClockwise
+)
+
+func (o Orientation) String() string {
+	switch o {
+	case OrientationColinear:
+		return "Colinear"
+
+	case OrientationClockwise:
+		return "Clockwise"
+
+	default:
+		return "Counter-Clockwise"
+	}
+}
+
+func GetOrientation(a, b, c Vector2) Orientation {
+	crossProduct := (b.X-a.X)*(c.Y-a.Y) - (c.X-a.X)*(b.Y-a.Y)
+
+	if crossProduct == 0 {
+		return OrientationColinear
+	}
+
+	if crossProduct > 0 {
+		return OrientationCounterClockwise
+	}
+
+	return OrientationClockwise
+}
+
 type Line2 struct {
 	Start, End Vector2
 }
@@ -141,6 +186,26 @@ func (l Line2) Contains(v Vector2) bool {
 	return false
 }
 
+func (l Line2) Slope() float32 {
+	dy := float32(l.End.Y - l.Start.Y)
+	dx := float32(l.End.X - l.Start.X)
+
+	return dy / dx
+}
+
+func (l Line2) Intersects(other Line2) bool {
+	o1 := GetOrientation(l.Start, l.End, other.Start)
+	o2 := GetOrientation(l.Start, l.End, other.End)
+	o3 := GetOrientation(other.Start, other.End, l.Start)
+	o4 := GetOrientation(other.Start, other.End, l.End)
+
+	if o1 == OrientationColinear || o2 == OrientationColinear || o3 == OrientationColinear || o4 == OrientationColinear {
+		return false
+	}
+
+	return o1 != o2 && o3 != o4
+}
+
 type Polygon2 struct {
 	vertices []Vector2
 }
@@ -151,11 +216,36 @@ func NewPolygon2(vertices []Vector2) Polygon2 {
 	}
 }
 
+func (p Polygon2) Segments() []Line2 {
+	var segments []Line2
+
+	for i, vertex := range p.vertices {
+		next := (i + 1) % len(p.vertices)
+
+		segments = append(segments, NewLine2(vertex, p.vertices[next]))
+	}
+
+	return segments
+}
+
 func (p Polygon2) ContainsRectangle(rect Rectangle2) bool {
 	for vertex := range rect.Vertices() {
-		contains, intersected := p.ContainsVector(vertex)
+		if !p.ContainsVector(vertex) {
+			return false
+		}
+	}
 
-		if !contains || intersected {
+	if !p.ContainsVector(rect.Center()) {
+		return false
+	}
+
+	polySegments := p.Segments()
+	for _, rSegment := range rect.Segments() {
+		intersects := slices.ContainsFunc(polySegments, func(pSegment Line2) bool {
+			return rSegment.Intersects(pSegment)
+		})
+
+		if intersects {
 			return false
 		}
 	}
@@ -163,7 +253,7 @@ func (p Polygon2) ContainsRectangle(rect Rectangle2) bool {
 	return true
 }
 
-func (p Polygon2) ContainsVector(vector Vector2) (bool, bool) {
+func (p Polygon2) ContainsVector(vector Vector2) bool {
 	intersections := 0
 
 	for i, vertex := range p.vertices {
@@ -171,7 +261,7 @@ func (p Polygon2) ContainsVector(vector Vector2) (bool, bool) {
 		line := NewLine2(vertex, p.vertices[next])
 
 		if line.Contains(vector) {
-			return true, true
+			return true
 		}
 
 		if (line.Start.Y > vector.Y) != (line.End.Y > vector.Y) {
@@ -182,7 +272,7 @@ func (p Polygon2) ContainsVector(vector Vector2) (bool, bool) {
 		}
 	}
 
-	return intersections%2 == 0, intersections > 0
+	return intersections%2 == 1
 }
 
 type Rectangle2 struct {
@@ -210,6 +300,13 @@ func NewRectangle2(a, b Vector2) Rectangle2 {
 	}
 }
 
+func (r Rectangle2) Center() Vector2 {
+	return Vector2{
+		X: (r.RightCorner.X + r.LeftCorner.X) / 2,
+		Y: (r.RightCorner.Y + r.LeftCorner.Y) / 2,
+	}
+}
+
 func (r Rectangle2) Vertices() iter.Seq[Vector2] {
 	vertices := []Vector2{
 		r.LeftCorner,
@@ -219,6 +316,17 @@ func (r Rectangle2) Vertices() iter.Seq[Vector2] {
 	}
 
 	return slices.Values(vertices)
+}
+
+func (r Rectangle2) Segments() []Line2 {
+	vertices := slices.Collect(r.Vertices())
+
+	return []Line2{
+		NewLine2(vertices[0], vertices[1]),
+		NewLine2(vertices[1], vertices[2]),
+		NewLine2(vertices[2], vertices[3]),
+		NewLine2(vertices[3], vertices[0]),
+	}
 }
 
 func (r Rectangle2) String() string {
