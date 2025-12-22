@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"iter"
 	"math"
 	"slices"
 	"strconv"
@@ -78,6 +79,39 @@ func SolvePart2(machines []Machine) {
 	fmt.Println(sum)
 }
 
+func SpeedometerIter(dials, maxValue int) iter.Seq[[]int] {
+	return func(yield func([]int) bool) {
+		dialValues := make([]int, dials)
+
+		for {
+			current := make([]int, dials)
+			copy(current, dialValues)
+			if !yield(current) {
+				return
+			}
+
+			increment := true
+			for i, dial := range dialValues {
+				if increment {
+					dial++
+					increment = false
+				}
+
+				if dial > maxValue {
+					if i == dials-1 {
+						return
+					}
+
+					dial = 0
+					increment = true
+				}
+
+				dialValues[i] = dial
+			}
+		}
+	}
+}
+
 type Row []float64
 
 func (r Row) String() string {
@@ -142,6 +176,15 @@ func (r Row) Check(variables []int) bool {
 	}
 
 	return equalApprox(total, sum)
+}
+
+func (r Row) SolvePivotColumn(column int, variables []int) float64 {
+	sum := r.Sum()
+	for i := column + 1; i < len(variables); i++ {
+		sum -= r[i] * float64(variables[i])
+	}
+
+	return sum
 }
 
 type Matrix []Row
@@ -227,46 +270,32 @@ func (m Matrix) solveUp(row, solvedVariables int, variables []int) ([]int, bool)
 		return equalApprox(val, 1)
 	})
 
-	newVariables := make([]int, len(variables))
-	copy(newVariables, variables)
 	if pivotCol >= 0 && pivotCol < len(m[row])-1 && pivotCol < solvedVariables {
 		var freeVariables []int
 		for i := pivotCol + 1; i < solvedVariables; i++ {
 			freeVariables = append(freeVariables, i)
 		}
 
-		if len(freeVariables) == 0 {
-			sum := m[row].Sum()
-			for i := pivotCol + 1; i < len(newVariables); i++ {
-				sum -= m[row][i] * float64(newVariables[i])
-			}
-			newVariables[pivotCol] = int(math.Round(sum))
+		trialVariables := make([]int, len(variables))
+		copy(trialVariables, variables)
 
-			if m[row].Check(newVariables) {
-				return m.solveUp(row-1, pivotCol, newVariables)
+		if len(freeVariables) == 0 {
+			trialVariables[pivotCol] = int(math.Round(m[row].SolvePivotColumn(pivotCol, trialVariables)))
+
+			if m[row].Check(trialVariables) {
+				return m.solveUp(row-1, pivotCol, trialVariables)
 			}
 
 			return variables, false
 		} else {
-			guessValues := make([]int, len(freeVariables))
-		parentLoop:
-			for {
-				if guessValues[len(guessValues)-1] > topOut {
-					break
-				}
-
+			for guessValues := range SpeedometerIter(len(freeVariables), topOut) {
 				for i, fv := range freeVariables {
-					newVariables[fv] = guessValues[i]
+					trialVariables[fv] = guessValues[i]
 				}
-				sum := m[row].Sum()
-				newVariables[pivotCol] = 0
-				for i := pivotCol + 1; i < len(newVariables); i++ {
-					sum -= m[row][i] * float64(newVariables[i])
-				}
-				newVariables[pivotCol] = int(math.Round(sum))
+				trialVariables[pivotCol] = int(math.Round(m[row].SolvePivotColumn(pivotCol, trialVariables)))
 
-				if m[row].Check(newVariables) {
-					if finalVars, solved := m.solveUp(row-1, pivotCol, newVariables); solved {
+				if m[row].Check(trialVariables) {
+					if finalVars, solved := m.solveUp(row-1, pivotCol, trialVariables); solved {
 						solution := Solution{
 							variables: finalVars,
 							presses:   sumInts(finalVars),
@@ -274,39 +303,24 @@ func (m Matrix) solveUp(row, solvedVariables int, variables []int) ([]int, bool)
 						solutions = append(solutions, solution)
 					}
 				}
-
-				guessValues[0]++
-				for i, v := range guessValues {
-					if v > topOut {
-						if i >= len(guessValues)-1 {
-							break parentLoop
-						}
-						guessValues[i] = 0
-						guessValues[i+1]++
-
-						break
-					}
-				}
 			}
 		}
 	}
 
-	if pivotCol < 0 && m[row].Check(newVariables) {
-		return m.solveUp(row-1, solvedVariables, newVariables)
+	if pivotCol < 0 && m[row].Check(variables) {
+		trialVariables := make([]int, len(variables))
+		copy(trialVariables, variables)
+
+		return m.solveUp(row-1, solvedVariables, trialVariables)
 	}
 
 	if len(solutions) > 0 {
-		fmt.Println("Found multiple possible solutions...")
-		for _, solution := range solutions {
-			fmt.Println(" --", solution.variables, solution.presses)
-		}
 		best := solutions[0]
 		for i := 1; i < len(solutions); i++ {
 			if solutions[i].presses < best.presses {
 				best = solutions[i]
 			}
 		}
-		fmt.Println("Selected", best.variables, best.presses)
 
 		return best.variables, m[row].Check(best.variables)
 	}
