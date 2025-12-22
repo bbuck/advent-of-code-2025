@@ -8,16 +8,11 @@ import (
 	"strings"
 )
 
-type graphable interface {
-	comparable
-	fmt.Stringer
-}
-
-type Graph[T graphable] struct {
+type Graph[T comparable] struct {
 	graph map[T]Set[T]
 }
 
-func NewGraph[T graphable]() *Graph[T] {
+func NewGraph[T comparable]() *Graph[T] {
 	return &Graph[T]{
 		graph: make(map[T]Set[T]),
 	}
@@ -71,13 +66,13 @@ func (g *Graph[T]) Inspect() string {
 	builder := new(strings.Builder)
 
 	for node := range g.Nodes() {
-		builder.WriteString(node.String())
+		fmt.Fprint(builder, node)
 		builder.WriteRune('\n')
 
 		edges, _ := g.GetEdges(node)
 		for edge := range edges {
 			builder.WriteString(" => ")
-			builder.WriteString(edge.String())
+			fmt.Fprint(builder, edge)
 			builder.WriteRune('\n')
 		}
 	}

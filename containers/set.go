@@ -27,6 +27,10 @@ func (s Set[T]) Has(item T) bool {
 	return exists
 }
 
+func (s Set[T]) Clone() Set[T] {
+	return Set[T](maps.Clone(s))
+}
+
 func (s Set[T]) Iter() iter.Seq[T] {
 	return maps.Keys(s)
 }
