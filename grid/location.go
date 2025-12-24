@@ -15,9 +15,35 @@ func NewLocation(row, column int) Location {
 	}
 }
 
+func LocationFromIndex[T comparable](index int, g *Grid[T]) Location {
+	row := index / g.ColumnLen()
+	col := index % g.ColumnLen()
+
+	return NewLocation(row, col)
+}
+
+func (l Location) toIndex(columnLen int) int {
+	return (l.Row * columnLen) + l.Column
+}
+
 // Translate creates a new location with the row and column values shifted.
 func (l Location) Translate(rowShift, columnShift int) Location {
 	return NewLocation(l.Row+rowShift, l.Column+columnShift)
+}
+
+func (l Location) Subtract(other Location) Location {
+	return NewLocation(l.Row-other.Row, l.Column-other.Column)
+}
+
+func (l Location) Add(other Location) Location {
+	return NewLocation(l.Row+other.Row, l.Column+other.Column)
+}
+
+func (l Location) RotateAround(pivot Location) Location {
+	adjusted := l.Subtract(pivot)
+	rotated := NewLocation(adjusted.Column, -adjusted.Row)
+
+	return rotated.Add(pivot)
 }
 
 // Up creates a new location that represents the position directly above the

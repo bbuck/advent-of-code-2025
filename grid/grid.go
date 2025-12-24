@@ -4,7 +4,7 @@ import "iter"
 
 // Grid handles building and access values in a matrix.
 type Grid[T any] struct {
-	matrix [][]T
+	matrix []T
 
 	rowLen    int
 	columnLen int
@@ -12,16 +12,17 @@ type Grid[T any] struct {
 
 // NewGrid creates a enw grid with the specified number of rows and columns.
 func NewGrid[T any](rowLen, columnLen int) *Grid[T] {
-	var matrix [][]T
-	for range rowLen {
-		matrix = append(matrix, make([]T, columnLen))
-	}
+	matrix := make([]T, rowLen*columnLen)
 
 	return &Grid[T]{
 		matrix:    matrix,
 		rowLen:    rowLen,
 		columnLen: columnLen,
 	}
+}
+
+func (g *Grid[T]) Clear() {
+	clear(g.matrix)
 }
 
 // RowLen returns the number of rows in the Grid.
@@ -42,7 +43,7 @@ func (g Grid[T]) At(l Location) (T, bool) {
 		return zero, false
 	}
 
-	return g.matrix[l.Row][l.Column], true
+	return g.matrix[l.toIndex(g.columnLen)], true
 }
 
 // SetAt will indiscriminately update the value at the specified location.
@@ -51,7 +52,7 @@ func (g Grid[T]) SetAt(l Location, value T) bool {
 		return false
 	}
 
-	g.matrix[l.Row][l.Column] = value
+	g.matrix[l.toIndex(g.columnLen)] = value
 
 	return true
 }
@@ -63,7 +64,7 @@ func (g Grid[T]) UpdateAt(l Location, update func(T) T) bool {
 		return false
 	}
 
-	g.matrix[l.Row][l.Column] = update(g.matrix[l.Row][l.Column])
+	g.matrix[l.toIndex(g.columnLen)] = update(g.matrix[l.toIndex(g.columnLen)])
 
 	return true
 }
@@ -73,7 +74,23 @@ func (g Grid[T]) Iter() iter.Seq2[Location, T] {
 	return func(yield func(Location, T) bool) {
 		for r := 0; r < g.rowLen; r++ {
 			for c := 0; c < g.columnLen; c++ {
-				if !yield(NewLocation(r, c), g.matrix[r][c]) {
+				loc := NewLocation(r, c)
+				if !yield(loc, g.matrix[loc.toIndex(g.columnLen)]) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// ColumnMajorIter returns a column major (column first) iterator over the
+// locations in the grid.
+func (g Grid[T]) ColumnMajorIter() iter.Seq2[Location, T] {
+	return func(yield func(Location, T) bool) {
+		for c := range g.columnLen {
+			for r := range g.rowLen {
+				loc := NewLocation(r, c)
+				if !yield(loc, g.matrix[loc.toIndex(g.columnLen)]) {
 					return
 				}
 			}
