@@ -137,10 +137,17 @@ func (space *Space) Fits(presents []Present) bool {
 	}
 
 	expandedPresents := make([]int, 0, sum)
+	var totalArea int
 	for i, count := range space.Counts {
+		totalArea += (presents[i].Area() * count)
 		for range count {
 			expandedPresents = append(expandedPresents, i)
 		}
+	}
+
+	availableArea := space.Layout.RowLen() * space.Layout.ColumnLen()
+	if totalArea > availableArea {
+		return false
 	}
 
 	slices.SortFunc(expandedPresents, func(a int, b int) int {
